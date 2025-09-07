@@ -25,42 +25,23 @@ jobs:
       with:
         python-version: '3.10'
         
-    - name: Cache Python dependencies
+    - name: Cache dependencies
       uses: actions/cache@v3
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        path: |
+          ~/.cache/pip
+          ~/.cache/ms-playwright
+        key: ${{ runner.os }}-deps-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
-          ${{ runner.os }}-pip-
-          
-    - name: Cache Playwright browsers
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/ms-playwright
-        key: ${{ runner.os }}-playwright-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-playwright-
-          
+          ${{ runner.os }}-deps-
+        
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Install Playwright browsers
-      run: |
-        echo "Installing Playwright browsers..."
-        playwright install chromium
-        playwright install-deps
-        echo "Verifying browser installation..."
-        ls -la ~/.cache/ms-playwright/ || echo "Playwright cache directory not found"
-        
-    - name: Debug environment
-      run: |
-        echo "Python version: $(python --version)"
-        echo "Playwright version: $(pip show playwright | grep Version)"
-        echo "Current directory: $(pwd)"
-        echo "Environment variables:"
-        env | grep -E "(PLAYWRIGHT|DISPLAY)" || echo "No Playwright/Display env vars"
+    - name: Ensure browsers are installed
+      run: playwright install --with-deps chromium
         
     - name: Run LinkedIn job scraper
       env:
