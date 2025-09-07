@@ -27,7 +27,18 @@ LINKEDIN_JOBS_URL = "https://www.linkedin.com/jobs/search-results/?distance=25.0
 
 async def scrape_jobs(playwright):
     """Scrapes jobs once and saves results to Google Sheets."""
-    browser = await playwright.chromium.launch(headless=True)  # headless for GitHub Actions
+    browser = await playwright.chromium.launch(
+        headless=True,  # headless for GitHub Actions
+        args=[
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu'
+        ]
+    )
     
     # Load LinkedIn state from environment variable
     linkedin_state = os.getenv('LINKEDIN_STATE_JSON')
@@ -38,11 +49,73 @@ async def scrape_jobs(playwright):
     with open('linkedin_state.json', 'w') as f:
         f.write(linkedin_state)
     
-    context = await browser.new_context(storage_state="linkedin_state.json")
+    context = await browser.new_context(
+        storage_state="linkedin_state.json",
+        user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        viewport={'width': 1920, 'height': 1080},
+        extra_http_headers={
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        }
+    )
     page = await context.new_page()
 
+    # Add extra stealth measures
+    await page.add_init_script("""
+        Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined,
+        });
+        
+        Object.defineProperty(navigator, 'plugins', {
+            get: () => [1, 2, 3, 4, 5],
+        });
+        
+        Object.defineProperty(navigator, 'languages', {
+            get: () => ['en-US', 'en'],
+        });
+        
+        window.chrome = {
+            runtime: {},
+        };
+    """)
+
     await page.goto(LINKEDIN_JOBS_URL, timeout=60000)
-    print("🔍 Page loaded, checking for job listings...")
+    
+    # Wait a bit longer and check if we're on the right page
+    await page.wait_for_timeout(5000)
+    
+    current_url = page.url
+    print(f"Current URL: {current_url}")
+    
+    # Take a screenshot for debugging
+    try:
+        await page.screenshot(path="debug_main_page.png")
+        print("📸 Screenshot saved: debug_main_page.png")
+    except:
+        pass
+    
+    # Check if we got redirected to a different page
+    if "user-agreement" in current_url or "legal" in current_url or "checkpoint" in current_url:
+        print("⚠️ LinkedIn detected automation, trying to navigate back...")
+        await page.goto(LINKEDIN_JOBS_URL, timeout=60000)
+        await page.wait_for_timeout(5000)
+        current_url = page.url
+        print(f"New URL after retry: {current_url}")
+    
+    # Check if we're actually on a jobs page
+    page_title = await page.title()
+    page_content = await page.content()
+    
+    if "user-agreement" in page_content or "legal" in page_content or "We're experiencing some" in page_content:
+        print("❌ LinkedIn is blocking access. The session may be expired or invalid.")
+        print("💡 Try running test.py locally to refresh the LinkedIn session")
+        await browser.close()
+        return
+    
+    print(f"Page title: {page_title}")
     
     # Debug: Print page title to confirm we're on the right page
     title = await page.title()
@@ -102,13 +175,29 @@ async def scrape_jobs(playwright):
     print(f"📝 Found {len(job_urls)} job URLs to process...")
     
     # Now visit each job URL to get details and apply links
+    successful_jobs = 0
     for i, job_url in enumerate(job_urls):
+        if successful_jobs >= 10:  # Limit to 10 jobs to avoid detection
+            print(f"\n🛑 Limiting to 10 jobs to avoid LinkedIn detection")
+            break
+            
         try:
             print(f"\n🔍 Processing job {i+1}/{len(job_urls)}...")
+            
+            # Add random delay between requests
+            import random
+            delay = random.uniform(3, 7)
+            await page.wait_for_timeout(int(delay * 1000))
             
             # Navigate to the individual job page
             await page.goto(job_url, timeout=30000)
             await page.wait_for_timeout(3000)  # Wait longer for page to load completely
+            
+            # Check if we got redirected to legal/agreement page
+            current_job_url = page.url
+            if "user-agreement" in current_job_url or "legal" in current_job_url:
+                print(f"   ⚠️ Job page redirected to legal page, skipping...")
+                continue
             
             # Extract job details from the individual job page
             title = ""
@@ -250,11 +339,12 @@ async def scrape_jobs(playwright):
                     if tag_name == "a":
                         # It's a link - get the href
                         apply_href = await apply_button.get_attribute("href")
-                        if apply_href:
+                        if apply_href and not ("user-agreement" in apply_href or "legal" in apply_href):
                             apply_link = apply_href
                             print(f"   ✅ Found external apply link: {apply_link[:80]}...")
                         else:
-                            apply_link = "External apply link (no href found)"
+                            apply_link = "External apply link (legal redirect detected)"
+                            print(f"   ⚠️ Apply link redirects to legal page")
                     
                     elif tag_name == "button":
                         # It's a button - check if it has onclick or if it's Easy Apply
@@ -338,6 +428,7 @@ async def scrape_jobs(playwright):
             if title:  # Only add jobs with titles
                 job_data.append([title, company, location, posted, apply_link])
                 print(f"   ✅ {title} | {company} | {location} | {posted} | Apply: {apply_link[:50] if len(apply_link) > 50 else apply_link}")
+                successful_jobs += 1
             else:
                 print("   ❌ Skipped - no title found")
                 
