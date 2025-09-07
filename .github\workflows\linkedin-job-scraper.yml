@@ -1,0 +1,69 @@
+name: LinkedIn Job Scraper
+
+on:
+  # Run on schedule (every hour, at minute 0)
+  schedule:
+    - cron: '0 * * * *'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+  
+  # Run on push to main branch (for testing)
+  push:
+    branches: [ main ]
+
+jobs:
+  scrape-jobs:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install playwright gspread oauth2client
+        
+    - name: Install Playwright browsers
+      run: |
+        playwright install --with-deps chromium
+        
+    - name: Create LinkedIn state file
+      run: |
+        echo '${{ secrets.LINKEDIN_STATE_JSON }}' > linkedin_state.json
+        
+    - name: Run LinkedIn job scraper
+      env:
+        GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+        LINKEDIN_STATE_JSON: ${{ secrets.LINKEDIN_STATE_JSON }}
+      run: |
+        python main.py
+        
+    - name: Clean up sensitive files
+      if: always()
+      run: |
+        rm -f linkedin_state.json
+        
+    - name: Upload logs (if needed for debugging)
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: scraper-logs
+        path: |
+          *.log
+          screenshots/
+        retention-days: 7
