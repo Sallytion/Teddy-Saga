@@ -33,30 +33,39 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
           
+    - name: Cache Playwright browsers
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-playwright-
+          
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install playwright gspread oauth2client
+        pip install -r requirements.txt
         
     - name: Install Playwright browsers
       run: |
-        playwright install --with-deps chromium
+        echo "Installing Playwright browsers..."
+        playwright install chromium
+        playwright install-deps
+        echo "Verifying browser installation..."
+        ls -la ~/.cache/ms-playwright/ || echo "Playwright cache directory not found"
         
-    - name: Setup display for headless
+    - name: Debug environment
       run: |
-        export DISPLAY=:99
-        Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
-        
-    - name: Create LinkedIn state file
-      run: |
-        echo '${{ secrets.LINKEDIN_STATE_JSON }}' > linkedin_state.json
+        echo "Python version: $(python --version)"
+        echo "Playwright version: $(pip show playwright | grep Version)"
+        echo "Current directory: $(pwd)"
+        echo "Environment variables:"
+        env | grep -E "(PLAYWRIGHT|DISPLAY)" || echo "No Playwright/Display env vars"
         
     - name: Run LinkedIn job scraper
       env:
         GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
         LINKEDIN_STATE_JSON: ${{ secrets.LINKEDIN_STATE_JSON }}
-        PLAYWRIGHT_BROWSERS_PATH: 0
-        DISPLAY: :99
       run: |
         python main.py
         
