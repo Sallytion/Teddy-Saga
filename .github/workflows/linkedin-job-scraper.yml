@@ -14,7 +14,7 @@ on:
 
 jobs:
   scrape-jobs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # Use Ubuntu 22.04 instead of latest (24.04)
     
     steps:
     - name: Checkout code
@@ -40,7 +40,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Ensure browsers are installed
+    - name: Install Playwright browsers
       run: playwright install --with-deps chromium
         
     - name: Run LinkedIn job scraper
