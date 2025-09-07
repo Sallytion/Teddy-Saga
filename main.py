@@ -27,18 +27,32 @@ LINKEDIN_JOBS_URL = "https://www.linkedin.com/jobs/search-results/?distance=25.0
 
 async def scrape_jobs(playwright):
     """Scrapes jobs once and saves results to Google Sheets."""
-    browser = await playwright.chromium.launch(
-        headless=True,  # headless for GitHub Actions
-        args=[
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu'
-        ]
-    )
+    try:
+        browser = await playwright.chromium.launch(
+            headless=True,  # headless for GitHub Actions
+            args=[
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding'
+            ]
+        )
+        print("✅ Browser launched successfully")
+    except Exception as e:
+        print(f"❌ Failed to launch browser: {e}")
+        # Try with minimal args as fallback
+        try:
+            browser = await playwright.chromium.launch(headless=True, args=['--no-sandbox'])
+            print("✅ Browser launched with minimal args")
+        except Exception as e2:
+            print(f"❌ Browser launch failed completely: {e2}")
+            raise
     
     # Load LinkedIn state from environment variable
     linkedin_state = os.getenv('LINKEDIN_STATE_JSON')
