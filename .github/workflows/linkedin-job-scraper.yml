@@ -1,7 +1,7 @@
 name: LinkedIn Job Scraper
 
 on:
-  # Run on schedule (every hour, at minute 0)
+  # Run on schedule (every hour)
   schedule:
     - cron: '0 * * * *'
   
@@ -42,6 +42,11 @@ jobs:
       run: |
         playwright install --with-deps chromium
         
+    - name: Setup display for headless
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+        
     - name: Create LinkedIn state file
       run: |
         echo '${{ secrets.LINKEDIN_STATE_JSON }}' > linkedin_state.json
@@ -50,6 +55,8 @@ jobs:
       env:
         GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
         LINKEDIN_STATE_JSON: ${{ secrets.LINKEDIN_STATE_JSON }}
+        PLAYWRIGHT_BROWSERS_PATH: 0
+        DISPLAY: :99
       run: |
         python main.py
         
@@ -58,12 +65,12 @@ jobs:
       run: |
         rm -f linkedin_state.json
         
-    - name: Upload logs (if needed for debugging)
-      if: failure()
+    - name: Upload debug artifacts
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: scraper-logs
+        name: debug-artifacts
         path: |
+          *.png
           *.log
-          screenshots/
         retention-days: 7
