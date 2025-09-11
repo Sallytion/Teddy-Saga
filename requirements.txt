@@ -1,3 +1,1 @@
-playwright==1.40.0
-gspread==5.12.0
-oauth2client==4.1.3
+linkedin-jobs-scraper>=1.12.0
