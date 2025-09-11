@@ -14,7 +14,7 @@ class LinkedInJobsScraper:
     def __init__(self, output_file='linkedin_jobs.csv'):
         self.output_file = output_file
         self.jobs_data = []
-        self.existing_job_ids = set()  # Track existing job IDs to avoid duplicates
+        self.existing_job_ids = set()  
         
         # Setup logging
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -211,7 +211,7 @@ class LinkedInJobsScraper:
                         relevance=RelevanceFilters.RECENT,
                         time=TimeFilters.WEEK,
                         type=[TypeFilters.FULL_TIME, TypeFilters.PART_TIME, TypeFilters.CONTRACT],
-                        experience=[ExperienceLevelFilters.ENTRY_LEVEL, ExperienceLevelFilters.ASSOCIATE, ExperienceLevelFilters.MID_SENIOR],
+                        experience=[ExperienceLevelFilters.ENTRY_LEVEL],
                         on_site_or_remote=[OnSiteOrRemoteFilters.ON_SITE, OnSiteOrRemoteFilters.REMOTE, OnSiteOrRemoteFilters.HYBRID]
                     )
                 )
@@ -232,12 +232,29 @@ class LinkedInJobsScraper:
         # Clear previous job data
         self.jobs_data = []
         
-        # Create scraper instance
+        # Create scraper instance with GitHub Actions compatible settings
         scraper_settings = self.config['scraper_settings']
+        
+        # Add Chrome options for GitHub Actions environment
+        chrome_options = None
+        if os.getenv('GITHUB_ACTIONS'):
+            from selenium.webdriver.chrome.options import Options as ChromeOptions
+            chrome_options = ChromeOptions()
+            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--disable-extensions')
+            chrome_options.add_argument('--disable-plugins')
+            chrome_options.add_argument('--disable-images')
+            chrome_options.add_argument('--disable-javascript')
+            chrome_options.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
+            self.logger.info("Using GitHub Actions Chrome options")
+        
         scraper = LinkedinScraper(
             chrome_executable_path=None,
             chrome_binary_location=None,
-            chrome_options=None,
+            chrome_options=chrome_options,
             headless=scraper_settings['headless'],
             max_workers=scraper_settings['max_workers'],
             slow_mo=scraper_settings['slow_mo'],
