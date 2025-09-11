@@ -33,13 +33,13 @@ class LinkedInJobsScraper:
             'cookie': '',
             'search_queries': [
                 {
-                    'query': 'Python Developer',
-                    'locations': ['United States'],
+                    'query': 'Software Developer',
+                    'locations': ['India'],
                     'limit': 50
                 },
                 {
                     'query': 'Software Engineer',
-                    'locations': ['United States'],
+                    'locations': ['India'],
                     'limit': 50
                 }
             ],
@@ -65,9 +65,11 @@ class LinkedInJobsScraper:
             if search_config:
                 try:
                     search_data = json.loads(search_config)
+                    self.logger.info(f"Loaded SEARCH_CONFIG: {search_data}")
                     if 'search_queries' in search_data:
                         default_config['search_queries'] = search_data['search_queries']
                         self.logger.info("Search queries loaded from environment variable")
+                        self.logger.info(f"New search queries: {default_config['search_queries']}")
                     if 'scraper_settings' in search_data:
                         default_config['scraper_settings'].update(search_data['scraper_settings'])
                         self.logger.info("Scraper settings loaded from environment variable")
@@ -75,6 +77,7 @@ class LinkedInJobsScraper:
                     self.logger.error(f"Error parsing SEARCH_CONFIG JSON: {e}")
             else:
                 self.logger.info("Using default search configuration")
+                self.logger.info(f"Default queries: {default_config['search_queries']}")
             
             return default_config
             

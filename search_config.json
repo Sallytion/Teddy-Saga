@@ -1,0 +1,30 @@
+{
+  "search_queries": [
+    {
+      "query": "Software Developer",
+      "locations": ["India"],
+      "limit": 50
+    },
+    {
+      "query": "Full Stack Developer", 
+      "locations": ["Bangalore, India"],
+      "limit": 30
+    },
+    {
+      "query": "Backend Developer",
+      "locations": ["Mumbai, India", "Delhi, India"],
+      "limit": 40
+    },
+    {
+      "query": "React Developer",
+      "locations": ["Remote", "India"],
+      "limit": 25
+    }
+  ],
+  "scraper_settings": {
+    "headless": true,
+    "max_workers": 1,
+    "slow_mo": 2.0,
+    "page_load_timeout": 60
+  }
+}
