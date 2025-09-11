@@ -12,6 +12,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write  # Allows the action to push changes back to the repository
+
 jobs:
   scrape-linkedin-jobs:
     runs-on: ubuntu-latest
