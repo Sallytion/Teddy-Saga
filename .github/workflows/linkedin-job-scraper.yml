@@ -28,21 +28,18 @@ jobs:
       with:
         python-version: '3.11'
     
-    - name: Install system dependencies
+    - name: Install Chrome and ChromeDriver
+      uses: browser-actions/setup-chrome@v1
+      with:
+        chrome-version: stable
+    
+    - name: Setup ChromeDriver
+      uses: nanasess/setup-chromedriver@v2
+    
+    - name: Install additional system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y wget gnupg
-        # Install Chrome
-        wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-        sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
-        sudo apt-get update
-        sudo apt-get install -y google-chrome-stable
-        # Install ChromeDriver
-        CHROME_DRIVER_VERSION=$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE)
-        wget -N http://chromedriver.storage.googleapis.com/$CHROME_DRIVER_VERSION/chromedriver_linux64.zip
-        unzip chromedriver_linux64.zip
-        sudo mv chromedriver /usr/local/bin/chromedriver
-        sudo chmod +x /usr/local/bin/chromedriver
+        sudo apt-get install -y xvfb
     
     - name: Install Python dependencies
       run: |
@@ -56,7 +53,14 @@ jobs:
         
         # Search configuration (set this as a repository variable or secret)
         SEARCH_CONFIG: ${{ vars.SEARCH_CONFIG }}
+        
+        # Chrome options for GitHub Actions
+        DISPLAY: :99
       run: |
+        # Start virtual display for headless Chrome
+        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+        
+        # Run the scraper
         python main.py
     
     - name: Check if CSV file was created or updated
