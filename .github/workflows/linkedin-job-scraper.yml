@@ -1,16 +1,8 @@
 name: LinkedIn Job Scraper
 
 on:
-  # Run on schedule (daily at 9 AM UTC)
-  schedule:
-    - cron: '0 9 * * *'
-  
   # Allow manual triggering
   workflow_dispatch:
-  
-  # Run on push to main branch (for testing)
-  push:
-    branches: [ main ]
 
 permissions:
   contents: write  # Allows the action to push changes back to the repository
